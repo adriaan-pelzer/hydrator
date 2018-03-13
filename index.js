@@ -1,6 +1,6 @@
 const R = require ( 'ramda' );
 const H = require ( 'highland' );
-const { URL } = require ( 'url' );
+const { Url: URL } = require ( 'url' );
 const request = require ( 'request' );
 const objectWalker = require ( 'highland-object-walker' );
 
