@@ -1,6 +1,6 @@
 {
   "name": "url-hydrator",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Hydrate urls in an object with the json that they return",
   "main": "index.js",
   "scripts": {
