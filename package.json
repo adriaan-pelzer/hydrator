@@ -1,0 +1,32 @@
+{
+  "name": "hydrator",
+  "version": "0.0.0",
+  "description": "Hydrate urls in an object with the json that they return",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adriaan-pelzer/hydrator.git"
+  },
+  "keywords": [
+    "hydrate",
+    "url",
+    "object"
+  ],
+  "author": "Adriaan Pelzer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adriaan-pelzer/hydrator/issues"
+  },
+  "homepage": "https://github.com/adriaan-pelzer/hydrator#readme",
+  "dependencies": {
+    "assert": "^1.4.1",
+    "deep-equals": "0.0.2",
+    "highland": "^2.12.0",
+    "highland-object-walker": "0.0.1",
+    "ramda": "^0.25.0",
+    "request": "^2.85.0"
+  }
+}
