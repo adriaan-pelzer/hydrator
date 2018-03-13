@@ -6,7 +6,7 @@ const objectWalker = require ( 'highland-object-walker' );
 
 const pools = {};
 
-const makeRequest = ( ignoreErrors, uri ) => {
+const makeRequest = ( replaceErrorsWith, uri ) => {
     const url = new URL ( uri );
     if ( ! pools[url.origin] ) { pools[url.origin] = { maxSockets: 100 }; }
     const pool = pools[url.origin];
@@ -17,24 +17,28 @@ const makeRequest = ( ignoreErrors, uri ) => {
         pool
     } )
         .errors ( ( error, push ) => {
-            if ( error && ! ignoreErrors ) {
+            if ( replaceErrorsWith === undefined ) {
                 return push ( error );
             }
-            return push ( null, O );
+            return push ( null, replaceErrorsWith );
         } )
         .flatMap ( H.wrapCallback ( ( response, callback ) => {
-            if ( response.statusCode !== 200 && ! ignoreErrors ) {
-                return callback ( {
-                    code: response.statusCode,
-                    message: response.body
-                } );
+            if ( response.statusCode !== 200 ) {
+                if ( replaceErrorsWith === undefined ) {
+                    return callback ( {
+                        code: response.statusCode,
+                        message: response.body
+                    } );
+                }
+
+                return callback ( null, replaceErrorsWith );
             }
 
             return callback ( null, response.body );
         } ) );
 };
 
-const hydrator = R.curry ( ( { rules = [], ignoreErrors = false }, O, callback ) => {
+const hydrator = R.curry ( ( { rules = [], replaceErrorsWith }, O, callback ) => {
     return objectWalker ( {
         String: O => {
             if ( R.reduce ( ( match, rule ) => {
@@ -42,13 +46,15 @@ const hydrator = R.curry ( ( { rules = [], ignoreErrors = false }, O, callback )
             }, true, R.concat ( [
                 /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/
             ], rules ) ) ) {
-                return makeRequest ( ignoreErrors, O );
+                return makeRequest ( replaceErrorsWith, O );
             }
 
             return H ( [ O ] );
         }
     }, O ).toCallback ( callback );
 } );
+
+module.exports = hydrator;
 
 if ( ! module.parent ) {
     const assert = require ( 'assert' );
@@ -68,8 +74,8 @@ if ( ! module.parent ) {
         ]
     };
 
-    const doTests = R.curry ( ( type, hydratedPaths, ignoreErrors, error, response ) => {
-        console.log ( `Running testing ${type} ...` );
+    const doTests = R.curry ( ( type, hydratedPaths, testObject, replaceErrorsWith, error, response ) => {
+        console.log ( `Testing ${type} ...` );
         assert ( error === null, `error is ${error}` );
 
         const syncInput = R.reduce ( ( syncInput, path ) => R.dissocPath ( path, syncInput ), testObject, hydratedPaths );
@@ -78,13 +84,13 @@ if ( ! module.parent ) {
         const asyncResponse = R.reduce ( ( asyncResponse, path ) => R.assocPath ( path, R.path ( path, response ), asyncResponse ), {}, hydratedPaths );
 
         return objectWalker ( {
-            String: O => makeRequest ( ignoreErrors, O )
+            String: O => makeRequest ( replaceErrorsWith, O )
         }, asyncInput ).toCallback ( ( error, hydratedInput ) => {
             assert ( error === null, `error is ${error}` );
             assert ( deepEquals ( syncResponse, syncInput ), `Sync inputs don't match up with sync outputs:\n${JSON.stringify(syncInput,null,4)}\nvs\n${JSON.stringify(syncResponse,null,4)}` );
             assert ( deepEquals ( asyncResponse, hydratedInput ), `Async & hydrated inputs don't match up with async outputs:\n${JSON.stringify(hydratedInput,null,4)}\nvs\n${JSON.stringify(asyncResponse,null,4)}` );
 
-            console.log ( 'Success' );
+            console.log ( `... ${type} success` );
         } );
     } );
 
@@ -95,7 +101,7 @@ if ( ! module.parent ) {
         [ 'd', 2 ],
         [ 'd', 1 ],
         [ 'd', 0 ]
-    ], false ) );
+    ], testObject, undefined ) );
 
     hydrator ( {
         rules: [
@@ -108,7 +114,7 @@ if ( ! module.parent ) {
         [ 'd', 2 ],
         [ 'd', 1 ],
         [ 'd', 0 ]
-    ], false ) );
+    ], testObject, undefined ) );
 
     hydrator ( {
         rules: [
@@ -119,5 +125,36 @@ if ( ! module.parent ) {
         [ 'c', 'url2' ],
         [ 'd', 1 ],
         [ 'd', 0 ]
-    ], false ) );
+    ], testObject, undefined ) );
+
+    const testObject2 = {
+        a: 12345,
+        b: 'hallo',
+        c: {
+            url1: 'https://jsonplaceholder.typicode.com/hallo',
+            url2: 'https://jsonplaceholder.typicode.com/posts/2',
+            url3: 'https://jsonplaceholder.typicode.com/posts/10'
+        },
+        d: [
+            'https://jsonplaceholder.typicode.com/posts/3',
+            'https://jsonplaceholder.typicode.com/posts/4',
+            'https://jsonplaceholder.typicode.com/posts/11'
+        ]
+    };
+
+    hydrator ( {}, testObject2, ( error, response ) => {
+        console.log ( 'Testing errors ...' );
+        assert ( response === undefined, `response is:\n${JSON.stringify(response,null,4)}` );
+        assert ( error.code === 404, `error code is ${error.code}` );
+        console.log ( '... errors success' );
+    } );
+
+    hydrator ( { replaceErrorsWith: null }, testObject2, doTests ( 'error replacement', [
+        [ 'c', 'url1' ],
+        [ 'c', 'url2' ],
+        [ 'c', 'url3' ],
+        [ 'd', 2 ],
+        [ 'd', 1 ],
+        [ 'd', 0 ]
+    ], testObject2, null ) );
 }
