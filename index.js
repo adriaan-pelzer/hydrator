@@ -22,7 +22,7 @@ const makeRequest = ( replaceErrorsWith, uri ) => {
             }
             return push ( null, R.type ( replaceErrorsWith ) === 'Function' ? replaceErrorsWith ( uri ) : replaceErrorsWith );
         } )
-        .flatMap ( H.wrapCallback ( ( response, callback ) => {
+        .flatMap ( H.wrapCallback ( ( response = {}, callback ) => {
             if ( response.statusCode !== 200 ) {
                 if ( replaceErrorsWith === undefined ) {
                     return callback ( {
