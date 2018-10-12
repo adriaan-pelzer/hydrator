@@ -38,14 +38,12 @@ const makeRequest = ( replaceErrorsWith, uri ) => {
         } ) );
 };
 
-const hydrator = R.curry ( ( { rules = [], replaceErrorsWith }, O, callback ) => {
+const hydrator = R.curry ( ( { rules, replaceErrorsWith }, O, callback ) => {
     return objectWalker ( {
         String: O => {
             if ( R.reduce ( ( match, rule ) => {
                 return match && O.match ( rule );
-            }, true, R.concat ( [
-                /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/
-            ], rules ) ) ) {
+            }, true, rules || [ /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/ ] ) ) {
                 return makeRequest ( replaceErrorsWith, O );
             }
 
